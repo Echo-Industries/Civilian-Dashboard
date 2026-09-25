@@ -1,0 +1,949 @@
+<!DOCTYPE html>
+<html lang="en" class="dark h-full bg-black">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Liberty County: Civilian Portal</title>
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/Tab_Logo_ID.png') }}">
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        obsidian: '#000000',
+                        surface: '#0a0a0a',
+                        card: '#121216',
+                        bordercolor: '#27272a',
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Chart.js for Financial & Job Analytics -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- FontAwesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts Inter & JetBrains Mono -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .mono-font { font-family: 'JetBrains Mono', monospace; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #000000; }
+        ::-webkit-scrollbar-thumb { background: #27272a; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #3f3f46; }
+    </style>
+</head>
+<body class="bg-obsidian text-zinc-100 min-h-screen flex flex-col selection:bg-blue-500 selection:text-white">
+
+    <header class="bg-surface/90 border-b border-bordercolor sticky top-0 z-40 backdrop-blur-md px-4 lg:px-8 py-3.5 flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+            <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-900/30 overflow-hidden">
+                <img src="{{ url_for('static', filename='images/Tab_Logo_ID.png') }}" alt="Liberty County logo" width="32" height="32" class="w-8 h-8 object-contain">
+            </div>
+            <div>
+                <div class="flex items-center space-x-2">
+                    <h1 class="font-bold text-lg tracking-tight text-white">LIBERTY COUNTY</h1>
+                </div>
+                <p class="text-sm font-semibold text-blue-300">Civilian Portal</p>
+            </div>
+        </div>
+
+        <!-- Citizen Profile & Quick Balance -->
+        <div class="flex items-center space-x-3">
+            <div class="hidden md:flex items-center space-x-3 px-3.5 py-1.5 rounded-lg bg-card border border-bordercolor text-xs">
+                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span class="text-zinc-300">Citizen: <strong class="text-white" id="current-citizen-name">Not found in game</strong></span>
+                <span class="text-zinc-600">|</span>
+                <span class="text-emerald-400 font-bold mono-font" id="header-bank-balance">--</span>
+            </div>
+            <button onclick="openModal('emergency-modal')" class="bg-red-600 hover:bg-red-500 text-white text-xs font-semibold px-3.5 py-2 rounded-lg transition-all shadow-lg shadow-red-600/20 flex items-center space-x-1.5 animate-pulse">
+                <i class="fa-solid fa-phone text-[10px]"></i>
+                <span>Call 911</span>
+            </button>
+            <div class="relative">
+                <button onclick="toggleAccountMenu()" aria-label="Open account menu" class="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border-2 border-sky-500/70 bg-slate-800 shadow-lg shadow-sky-950/30">
+                    <img id="account-avatar" src="{{ url_for('static', filename='images/Tab_Logo_ID.png') }}" alt="Roblox profile picture" class="h-full w-full object-cover">
+                </button>
+                <div id="account-menu" class="absolute right-0 top-12 z-50 hidden w-56 rounded-xl border border-bordercolor bg-card p-3 shadow-2xl">
+                    <p id="account-name" class="truncate px-2 py-1 text-xs font-semibold text-white">Roblox account</p>
+                    <p id="account-team" class="px-2 pb-2 text-[11px] text-zinc-500">Checking team...</p>
+                    <a href="{{ url_for('logout') }}" class="block rounded-lg px-2 py-2 text-xs text-red-400 hover:bg-red-950/40">Sign out</a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div class="flex-1 flex flex-col lg:flex-row">
+        <!-- Sidebar Navigation -->
+        <aside class="w-full lg:w-64 bg-surface border-r border-bordercolor p-4 flex flex-col justify-between space-y-6">
+            <nav class="space-y-1.5">
+                <p class="px-3 text-[10px] font-semibold tracking-wider text-zinc-500 uppercase mb-2">Citizen Menu</p>
+                <button onclick="switchTab('dashboard')" id="nav-dashboard" class="tab-btn w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-xs font-medium transition-all bg-zinc-800 text-white shadow-inner">
+                    <i class="fa-solid fa-house w-4 text-center"></i>
+                    <span>Main Dashboard</span>
+                </button>
+                <button onclick="switchTab('jobs')" id="nav-jobs" class="tab-btn w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-xs font-medium transition-all text-zinc-400 hover:text-white hover:bg-zinc-900">
+                    <i class="fa-solid fa-briefcase w-4 text-center"></i>
+                    <span>Jobs & Career Center</span>
+                </button>
+                <button onclick="switchTab('dispatch')" id="nav-dispatch" class="tab-btn w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-xs font-medium transition-all text-zinc-400 hover:text-white hover:bg-zinc-900">
+                    <i class="fa-solid fa-phone-volume w-4 text-center"></i>
+                    <span>911 Emergency Tracker</span>
+                </button>
+                <button onclick="switchTab('roadside')" id="nav-roadside" class="tab-btn w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-xs font-medium transition-all text-zinc-400 hover:text-white hover:bg-zinc-900">
+                    <i class="fa-solid fa-truck-ramp-box w-4 text-center"></i>
+                    <span>Roadside Assistance</span>
+                </button>
+                <button onclick="switchTab('maps')" id="nav-maps" class="tab-btn w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-xs font-medium transition-all text-zinc-400 hover:text-white hover:bg-zinc-900">
+                    <i class="fa-solid fa-map-location-dot w-4 text-center"></i>
+                    <span>District Maps Hub</span>
+                </button>
+                <button onclick="switchTab('dmv')" id="nav-dmv" class="tab-btn w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-xs font-medium transition-all text-zinc-400 hover:text-white hover:bg-zinc-900">
+                    <i class="fa-solid fa-car w-4 text-center"></i>
+                    <span>DMV & Vehicle Registry</span>
+                </button>
+                <button onclick="switchTab('records')" id="nav-records" class="tab-btn w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-xs font-medium transition-all text-zinc-400 hover:text-white hover:bg-zinc-900">
+                    <i class="fa-solid fa-file-invoice-dollar w-4 text-center"></i>
+                    <span>Finances & Warrants</span>
+                </button>
+            </nav>
+
+            <!-- Quick Status Sidebar Widget -->
+            <div class="p-3.5 rounded-xl bg-card border border-bordercolor space-y-3">
+                <div class="flex items-center justify-between text-xs">
+                    <span class="text-zinc-400">Current Employment</span>
+                    <span id="sidebar-current-job" class="font-bold text-blue-400">--</span>
+                </div>
+                <div class="flex items-center justify-between text-xs">
+                    <span class="text-zinc-400">Registered Vehicles</span>
+                    <span id="sidebar-car-count" class="font-bold text-white mono-font">2</span>
+                </div>
+                <div class="flex items-center justify-between text-xs">
+                    <span class="text-zinc-400">Active Warrants</span>
+                    <span class="font-bold text-emerald-400">None (Clean)</span>
+                </div>
+                <div class="pt-2 border-t border-zinc-800 flex items-center justify-between text-[11px] text-zinc-500">
+                    <span>API Connection</span>
+                    <span id="api-connection-status" class="mono-font text-amber-400">Checking...</span>
+                </div>
+            </div>
+        </aside>
+
+        <main class="flex-1 p-4 lg:p-8 overflow-y-auto bg-obsidian">
+
+            <!-- TAB 1: MAIN DASHBOARD -->
+            <div id="tab-dashboard" class="tab-content space-y-6">
+                <!-- Top Welcome Banner & Quick Action Cards -->
+                <div class="p-6 rounded-2xl bg-gradient-to-r from-blue-950/40 via-surface to-card border border-bordercolor shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div>
+                        <span class="text-xs uppercase font-semibold text-blue-400 tracking-wider">Liberty County Roleplay Hub</span>
+                        <h2 class="text-xl font-bold text-white mt-1">Welcome back, <span id="welcome-citizen-name">citizen</span></h2>
+                        <p class="text-xs text-zinc-400 mt-0.5">Manage your civilian career, file emergency 911 reports, register vehicles, and check municipal maps.</p>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <button onclick="switchTab('jobs')" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-xs font-semibold text-white shadow-lg shadow-blue-600/20 transition-all flex items-center space-x-1.5">
+                            <i class="fa-solid fa-briefcase"></i>
+                            <span>Browse Jobs</span>
+                        </button>
+                        <button onclick="openModal('emergency-modal')" class="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-xs font-semibold text-white shadow-lg shadow-red-600/20 transition-all flex items-center space-x-1.5">
+                            <i class="fa-solid fa-phone"></i>
+                            <span>Call 911</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 4 Main Interactive Portal Containers -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <!-- Jobs Container Card -->
+                    <div onclick="switchTab('jobs')" class="p-5 rounded-2xl bg-card border border-bordercolor hover:border-blue-500/50 cursor-pointer transition-all shadow-xl flex flex-col justify-between group">
+                        <div>
+                            <div class="w-10 h-10 rounded-xl bg-blue-950/60 border border-blue-900/40 flex items-center justify-center text-blue-400 mb-4 group-hover:scale-110 transition-transform">
+                                <i class="fa-solid fa-briefcase text-sm"></i>
+                            </div>
+                            <h3 class="font-bold text-sm text-white">Jobs & Career Center</h3>
+                            <p class="text-xs text-zinc-400 mt-1">Explore job salaries, location pins, and start working your shift.</p>
+                        </div>
+                        <div class="mt-4 pt-3 border-t border-zinc-800 flex items-center justify-between text-xs text-blue-400 font-semibold">
+                            <span>View 6 Careers</span>
+                            <i class="fa-solid fa-arrow-right text-[10px] group-hover:translate-x-1 transition-transform"></i>
+                        </div>
+                    </div>
+
+                    <!-- Call 911 Container Card -->
+                    <div onclick="openModal('emergency-modal')" class="p-5 rounded-2xl bg-card border border-bordercolor hover:border-red-500/50 cursor-pointer transition-all shadow-xl flex flex-col justify-between group">
+                        <div>
+                            <div class="w-10 h-10 rounded-xl bg-red-950/60 border border-red-900/40 flex items-center justify-center text-red-400 mb-4 group-hover:scale-110 transition-transform">
+                                <i class="fa-solid fa-phone-volume text-sm"></i>
+                            </div>
+                            <h3 class="font-bold text-sm text-white">Call 911 Emergency</h3>
+                            <p class="text-xs text-zinc-400 mt-1">Auto-locates your game position & alerts police/fire/EMS units instantly.</p>
+                        </div>
+                        <div class="mt-4 pt-3 border-t border-zinc-800 flex items-center justify-between text-xs text-red-400 font-semibold">
+                            <span>Open Dispatch Form</span>
+                            <i class="fa-solid fa-arrow-right text-[10px] group-hover:translate-x-1 transition-transform"></i>
+                        </div>
+                    </div>
+
+                    <!-- Maps Container Card -->
+                    <div onclick="switchTab('maps')" class="p-5 rounded-2xl bg-card border border-bordercolor hover:border-emerald-500/50 cursor-pointer transition-all shadow-xl flex flex-col justify-between group">
+                        <div>
+                            <div class="w-10 h-10 rounded-xl bg-emerald-950/60 border border-emerald-900/40 flex items-center justify-center text-emerald-400 mb-4 group-hover:scale-110 transition-transform">
+                                <i class="fa-solid fa-map-location-dot text-sm"></i>
+                            </div>
+                            <h3 class="font-bold text-sm text-white">District Maps Hub</h3>
+                            <p class="text-xs text-zinc-400 mt-1">Switch between structure, job, driving, and crime map overlays.</p>
+                        </div>
+                        <div class="mt-4 pt-3 border-t border-zinc-800 flex items-center justify-between text-xs text-emerald-400 font-semibold">
+                            <span>Open Map Viewer</span>
+                            <i class="fa-solid fa-arrow-right text-[10px] group-hover:translate-x-1 transition-transform"></i>
+                        </div>
+                    </div>
+
+                    <!-- DMV Container Card -->
+                    <div onclick="switchTab('dmv')" class="p-5 rounded-2xl bg-card border border-bordercolor hover:border-amber-500/50 cursor-pointer transition-all shadow-xl flex flex-col justify-between group">
+                        <div>
+                            <div class="w-10 h-10 rounded-xl bg-amber-950/60 border border-amber-900/40 flex items-center justify-center text-amber-400 mb-4 group-hover:scale-110 transition-transform">
+                                <i class="fa-solid fa-car text-sm"></i>
+                            </div>
+                            <h3 class="font-bold text-sm text-white">DMV & Vehicle Registry</h3>
+                            <p class="text-xs text-zinc-400 mt-1">Register plates, update insurance, and check vehicle statuses.</p>
+                        </div>
+                        <div class="mt-4 pt-3 border-t border-zinc-800 flex items-center justify-between text-xs text-amber-400 font-semibold">
+                            <span>Manage Vehicles</span>
+                            <i class="fa-solid fa-arrow-right text-[10px] group-hover:translate-x-1 transition-transform"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Dispatch Feed & Active Jobs Widget Grid -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- Live Scanner Feed -->
+                    <div class="p-6 rounded-2xl bg-card border border-bordercolor shadow-xl space-y-4">
+                        <div class="flex items-center justify-between">
+                            <h3 class="text-sm font-semibold uppercase tracking-wider text-zinc-300 flex items-center space-x-2">
+                                <i class="fa-solid fa-truck-ramp-box text-amber-400"></i>
+                                <span>Roadside Assistance</span>
+                            </h3>
+                            <button onclick="switchTab('roadside')" class="text-xs text-amber-400 hover:text-amber-300">Open DOT desk</button>
+                        </div>
+                        <div class="p-4 rounded-xl bg-surface border border-bordercolor">
+                            <p class="text-xs text-zinc-300">Need a tow, jump start, fuel delivery, or roadside recovery? File a private DOT call and track only your own request.</p>
+                            <button onclick="openModal('roadside-modal')" class="mt-4 px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-xs font-semibold text-white">Request DOT assistance</button>
+                        </div>
+                    </div>
+
+                    <!-- Financial Ledger Summary -->
+                    <div class="p-6 rounded-2xl bg-card border border-bordercolor shadow-xl space-y-4">
+                        <div class="flex items-center justify-between">
+                            <h3 class="text-sm font-semibold uppercase tracking-wider text-zinc-300 flex items-center space-x-2">
+                                <i class="fa-solid fa-wallet text-emerald-400"></i>
+                                <span>Citizen Financial Overview</span>
+                            </h3>
+                            <button onclick="switchTab('records')" class="text-xs text-blue-400 hover:text-blue-300 font-medium">View Ledger</button>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="p-4 rounded-xl bg-surface border border-bordercolor">
+                                <span class="text-zinc-400 text-[10px] uppercase block">Bank Balance</span>
+                                <span class="text-xl font-bold mono-font text-emerald-400 mt-1 block" id="dash-bank-balance">--</span>
+                            </div>
+                            <div class="p-4 rounded-xl bg-surface border border-bordercolor">
+                                <span class="text-zinc-400 text-[10px] uppercase block">Hourly Pay Rate</span>
+                                <span class="text-xl font-bold mono-font text-blue-400 mt-1 block" id="dash-hourly-pay">--</span>
+                            </div>
+                        </div>
+                        <div class="pt-2">
+                            <div class="flex items-center justify-between text-xs text-zinc-400 mb-1">
+                                <span>Active job from ER:LC</span>
+                                <span id="career-status">--</span>
+                            </div>
+                            <div class="w-full bg-zinc-900 h-2 rounded-full overflow-hidden border border-zinc-800">
+                                <div class="bg-blue-600 h-full rounded-full" style="width: 78%;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 2: JOBS & CAREER CENTER -->
+            <div id="tab-jobs" class="tab-content space-y-6 hidden">
+                <div class="p-6 rounded-2xl bg-card border border-bordercolor shadow-xl space-y-4">
+                    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div>
+                            <h2 class="text-base font-bold text-white flex items-center space-x-2">
+                                <i class="fa-solid fa-briefcase text-blue-500"></i>
+                                <span>Liberty County Employment & Career Center</span>
+                            </h2>
+                            <p class="text-xs text-zinc-400 mt-0.5">Browse actual ER:LC jobs. Change your job in game to update your active career here.</p>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <span class="px-3 py-1 rounded-lg bg-blue-950/60 border border-blue-900 text-xs font-semibold text-blue-400">
+                                Active Job: <span id="active-job-badge" class="text-white">--</span>
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- Job Listings Grid -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-2" id="job-listings-grid">
+                        <!-- Populated dynamically -->
+                    </div>
+                </div>
+
+                <!-- Job Locations Map Preview -->
+                <div class="p-6 rounded-2xl bg-card border border-bordercolor shadow-xl space-y-4">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h3 class="text-sm font-semibold uppercase tracking-wider text-zinc-300">Job Locations Map</h3>
+                            <p class="text-xs text-zinc-400">Shows all locations for job opportunities.</p>
+                        </div>
+                        <button onclick="switchTab('maps')" class="text-xs text-emerald-400 hover:text-emerald-300 font-medium">Open Full Maps Hub</button>
+                    </div>
+                    <div class="bg-surface border border-bordercolor rounded-xl p-4 flex flex-col items-center justify-center relative overflow-hidden">
+                        <div class="w-full overflow-auto rounded-lg border border-zinc-800 bg-black flex items-center justify-center p-2">
+                            <img src="{{ url_for('static', filename='images/Job_Overlay.png') }}" alt="Job Locations Map" width="586" height="530" class="w-full h-auto max-h-[70vh] object-contain rounded-lg shadow-2xl">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 3: 911 EMERGENCY TRACKER -->
+            <div id="tab-dispatch" class="tab-content space-y-6 hidden">
+                <div class="p-6 rounded-2xl bg-card border border-bordercolor shadow-xl space-y-6">
+                    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div>
+                            <h2 class="text-base font-bold text-white flex items-center space-x-2">
+                                <i class="fa-solid fa-phone-volume text-red-500"></i>
+                                <span>911 Emergency Dispatch & Unit Response Tracker</span>
+                            </h2>
+                            <p class="text-xs text-zinc-400 mt-0.5">Track live responder units (Police, Fire, EMS) assigned to your active emergency calls.</p>
+                        </div>
+                        <button onclick="openModal('emergency-modal')" class="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-xs font-semibold text-white shadow-lg shadow-red-600/30 flex items-center space-x-1.5">
+                            <i class="fa-solid fa-plus text-[10px]"></i>
+                            <span>File New 911 Call</span>
+                        </button>
+                    </div>
+
+                    <!-- Active Calls Stream -->
+                    <div class="space-y-4" id="active-calls-container">
+                        <!-- Populated dynamically -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 4: ROADSIDE ASSISTANCE -->
+            <div id="tab-roadside" class="tab-content space-y-6 hidden">
+                <div class="p-6 rounded-2xl bg-card border border-bordercolor shadow-xl space-y-5">
+                    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div>
+                            <h2 class="text-base font-bold text-white flex items-center space-x-2">
+                                <i class="fa-solid fa-truck-ramp-box text-amber-500"></i>
+                                <span>Roadside Assistance</span>
+                            </h2>
+                            <p class="text-xs text-zinc-400 mt-0.5">Request help from the Department of Transportation for your vehicle.</p>
+                        </div>
+                        <button onclick="openModal('roadside-modal')" class="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-xs font-semibold text-white">Call DOT</button>
+                    </div>
+                    <div id="roadside-calls-container" class="space-y-3"></div>
+                </div>
+            </div>
+
+            <!-- TAB 5: DISTRICT MAPS HUB -->
+            <div id="tab-maps" class="tab-content space-y-6 hidden">
+                <div class="p-6 rounded-2xl bg-card border border-bordercolor shadow-xl space-y-6">
+                    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div>
+                            <h2 class="text-base font-bold text-white flex items-center space-x-2">
+                                <i class="fa-solid fa-map-location-dot text-emerald-500"></i>
+                               <span>Liberty County District Maps Hub</span>
+                            </h2>
+                            <p class="text-xs text-zinc-400 mt-0.5">Switch between specialized maps for navigation, job hunting, structures, and crime tracking.</p>
+                        </div>
+                        <!-- Map Category Selector Pills -->
+                        <div class="flex flex-wrap items-center gap-2">
+                            <button onclick="switchMapLayer('structure')" id="map-btn-structure" class="map-pill px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 text-white shadow-lg shadow-emerald-600/20 transition-all">Structure Overlay</button>
+                            <button onclick="switchMapLayer('job')" id="map-btn-job" class="map-pill px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-zinc-900 border border-bordercolor text-zinc-300 hover:text-white transition-all">Job Map</button>
+                            <button onclick="switchMapLayer('driving')" id="map-btn-driving" class="map-pill px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-zinc-900 border border-bordercolor text-zinc-300 hover:text-white transition-all">Driving Map</button>
+                            <button onclick="switchMapLayer('crime')" id="map-btn-crime" class="map-pill px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-zinc-900 border border-bordercolor text-zinc-300 hover:text-white transition-all">Crime Map Overlay</button>
+                        </div>
+                    </div>
+
+                    <!-- Map Display Area -->
+                    <div class="bg-surface border border-bordercolor rounded-2xl p-4 flex flex-col items-center justify-center relative overflow-hidden">
+                        <div class="w-full flex items-center justify-between px-3 pb-3 border-b border-zinc-800 text-xs">
+                            <span class="text-zinc-400">Active Layer: <strong id="current-map-title" class="text-emerald-400">Structure Overlay</strong></span>
+                        </div>
+                        <div class="w-full overflow-auto rounded-xl border border-zinc-800 bg-black flex items-center justify-center p-3 mt-3">
+                            <img id="active-map-image" src="{{ url_for('static', filename='images/Building_Overlay.png') }}" alt="District Map" width="585" height="537" class="w-full h-auto max-h-[75vh] object-contain rounded-lg shadow-2xl">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 5: DMV & VEHICLE REGISTRY -->
+            <div id="tab-dmv" class="tab-content space-y-6 hidden">
+                <div class="p-6 rounded-2xl bg-card border border-bordercolor shadow-xl space-y-6">
+                    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div>
+                            <h2 class="text-base font-bold text-white flex items-center space-x-2">
+                                <i class="fa-solid fa-car text-amber-500"></i>
+                                <span>Liberty County DMV & Vehicle Registry</span>
+                            </h2>
+                            <p class="text-xs text-zinc-400 mt-0.5">Register the civilian vehicle currently spawned to your Roblox account.</p>
+                        </div>
+                            <button onclick="registerCurrentVehicle()" class="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-xs font-semibold text-white shadow-lg shadow-amber-600/30 flex items-center space-x-1.5">
+                            <i class="fa-solid fa-plus text-[10px]"></i>
+                                <span>Register Spawned Vehicle</span>
+                        </button>
+                    </div>
+
+                    <!-- Registered Vehicles Table -->
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs">
+                            <thead class="bg-zinc-900/80 text-zinc-400 uppercase text-[10px] tracking-wider border-b border-bordercolor">
+                                <tr>
+                                    <th class="p-3">License Plate</th>
+                                    <th class="p-3">Make & Model</th>
+                                    <th class="p-3">Color</th>
+                                    <th class="p-3">Registration Status</th>
+                                    <th class="p-3 text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="vehicle-tbody" class="divide-y divide-zinc-800/60">
+                                <!-- Populated dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 6: FINANCES & WARRANTS -->
+            <div id="tab-records" class="tab-content space-y-6 hidden">
+                <div class="p-6 rounded-2xl bg-card border border-bordercolor shadow-xl space-y-6">
+                    <div>
+                        <h2 class="text-base font-bold text-white">Citizen Finances & Warrant Status</h2>
+                        <p class="text-xs text-zinc-400 mt-0.5">Complete ledger of your earnings, cash withdrawals, and municipal background check.</p>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div class="p-4 rounded-xl bg-surface border border-bordercolor space-y-3">
+                            <h3 class="text-xs font-semibold uppercase tracking-wider text-zinc-300">Earnings Chart (Last 7 Shifts)</h3>
+                            <div class="h-64 relative flex items-center justify-center">
+                                <canvas id="financesChart"></canvas>
+                            </div>
+                        </div>
+
+                        <div class="p-4 rounded-xl bg-surface border border-bordercolor space-y-4">
+                            <h3 class="text-xs font-semibold uppercase tracking-wider text-zinc-300">Background & Warrant Summary</h3>
+                            <div class="space-y-3 text-xs">
+                                <div class="flex items-center justify-between p-3 rounded-lg bg-zinc-900 border border-zinc-800">
+                                    <span class="text-zinc-400">Criminal Record:</span>
+                                    <span class="text-emerald-400 font-semibold">No Criminal Convictions</span>
+                                </div>
+                                <div class="flex items-center justify-between p-3 rounded-lg bg-zinc-900 border border-zinc-800">
+                                    <span class="text-zinc-400">Active Warrants:</span>
+                                    <span class="text-emerald-400 font-semibold">None Outstanding</span>
+                                </div>
+                                <div class="flex items-center justify-between p-3 rounded-lg bg-zinc-900 border border-zinc-800">
+                                    <span class="text-zinc-400">Driver's License Status:</span>
+                                    <span class="text-emerald-400 font-semibold">Valid (Class C)</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- MODAL: CALL 911 EMERGENCY FORM -->
+    <div id="emergency-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="bg-card border border-bordercolor w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden">
+            <div class="px-6 py-4 border-b border-bordercolor flex items-center justify-between bg-surface">
+                <div class="flex items-center space-x-2">
+                    <i class="fa-solid fa-phone text-red-500"></i>
+                    <h3 class="font-bold text-sm text-white">Liberty County 911 Emergency Dispatch</h3>
+                </div>
+                <button onclick="closeModal('emergency-modal')" class="text-zinc-400 hover:text-white text-xs"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <form id="emergency-form" onsubmit="handleEmergencySubmit(event)" class="p-6 space-y-4">
+                <div class="p-3 rounded-xl bg-zinc-900 border border-bordercolor text-xs flex items-center justify-between">
+                    <span class="text-zinc-400">Auto-Pulled GPS Location:</span>
+                    <span id="auto-gps-location" class="mono-font font-bold text-red-400">Location unavailable from ER:LC</span>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-zinc-300 mb-1">Emergency Type</label>
+                    <select id="emergency-type" required class="w-full bg-zinc-900 border border-bordercolor rounded-xl px-3 py-2 text-xs text-zinc-200 focus:outline-none focus:border-red-500">
+                        <option value="Police / Crime in Progress">Police / Crime in Progress (Robbery, Assault)</option>
+                        <option value="Fire / Structure Fire">Fire / Structure Fire or Hazmat</option>
+                        <option value="EMS / Medical Emergency">EMS / Medical Emergency (Injury, Cardiac)</option>
+                        <option value="Traffic Accident">Traffic Accident (Vehicle Collision)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-zinc-300 mb-1">Emergency Description & Details</label>
+                    <textarea id="emergency-desc" rows="3" placeholder="Describe the emergency, suspect details, or medical condition..." required class="w-full bg-zinc-900 border border-bordercolor rounded-xl px-3 py-2 text-xs text-zinc-200 focus:outline-none focus:border-red-500"></textarea>
+                </div>
+                <div class="flex justify-end space-x-2 pt-2">
+                    <button type="button" onclick="closeModal('emergency-modal')" class="px-4 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-xs font-medium text-zinc-300">Cancel</button>
+                    <button type="submit" class="px-5 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-xs font-semibold text-white shadow-lg shadow-red-600/30">Submit 911 Dispatch Call</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: REGISTER VEHICLE -->
+    <div id="roadside-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="bg-card border border-bordercolor w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden">
+            <div class="px-6 py-4 border-b border-bordercolor flex items-center justify-between bg-surface">
+                <div class="flex items-center space-x-2">
+                    <i class="fa-solid fa-truck-ramp-box text-amber-500"></i>
+                    <h3 class="font-bold text-sm text-white">DOT Roadside Assistance</h3>
+                </div>
+                <button onclick="closeModal('roadside-modal')" class="text-zinc-400 hover:text-white text-xs"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <form id="roadside-form" onsubmit="handleRoadsideSubmit(event)" class="p-6 space-y-4">
+                <div class="p-3 rounded-xl bg-zinc-900 border border-bordercolor text-xs flex items-center justify-between">
+                    <span class="text-zinc-400">Current location:</span>
+                    <span id="roadside-gps-location" class="mono-font font-bold text-amber-400">Location unavailable from ER:LC</span>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-zinc-300 mb-1">What do you need?</label>
+                    <select id="roadside-type" required class="w-full bg-zinc-900 border border-bordercolor rounded-xl px-3 py-2 text-xs text-zinc-200 focus:outline-none focus:border-amber-500">
+                        <option>Vehicle tow</option>
+                        <option>Jump start</option>
+                        <option>Fuel delivery</option>
+                        <option>Roadside recovery</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-zinc-300 mb-1">Details</label>
+                    <textarea id="roadside-desc" rows="3" placeholder="Tell DOT what happened and identify your vehicle." required class="w-full bg-zinc-900 border border-bordercolor rounded-xl px-3 py-2 text-xs text-zinc-200 focus:outline-none focus:border-amber-500"></textarea>
+                </div>
+                <div class="flex justify-end space-x-2 pt-2">
+                    <button type="button" onclick="closeModal('roadside-modal')" class="px-4 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-xs font-medium text-zinc-300">Cancel</button>
+                    <button type="submit" class="px-5 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-xs font-semibold text-white">Send DOT Call</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Global Civilian Portal State
+        let civilianState = {
+            bankBalance: null,
+            activeJob: null,
+            hourlyPay: null,
+            playerId: null,
+            username: null,
+            gpsLocation: null,
+            apiConnected: false,
+            jobs: [
+                { name: 'Civilian', desc: 'Explore Liberty County, work local shifts, and enjoy civilian life.' },
+                { name: 'Postal Worker', desc: 'Deliver packages and letters throughout the county.' },
+                { name: 'Tow Truck Driver', desc: 'Recover vehicles and help keep traffic moving.' },
+                { name: 'Taxi Driver', desc: 'Transport residents safely to their destinations.' },
+                { name: 'Bus Driver', desc: 'Operate public transit routes across Liberty County.' },
+                { name: 'Trucker', desc: 'Haul freight between businesses and delivery hubs.' }
+            ],
+            vehicles: [],
+            activeEmergencies: [],
+            roadsideCalls: [],
+            signedIn: false,
+            isCivilian: false,
+            currentVehicle: null
+        };
+
+        let financesChartInstance = null;
+
+        function initPortal() {
+            updateDashboardUI();
+            renderJobListings();
+            renderVehicles();
+            renderActiveCalls();
+            renderRoadsideCalls();
+            initFinancesChart();
+            refreshErlcStatus();
+            loadAccount();
+            loadRegisteredVehicles();
+            setInterval(refreshErlcStatus, 15000);
+        }
+
+        async function loadAccount() {
+            const response = await fetch('/api/auth/me', {cache: 'no-store'});
+            const data = await response.json();
+            if (!data.user) {
+                window.location.href = '{{ url_for("sign_in") }}';
+                return;
+            }
+            civilianState.signedIn = true;
+            document.getElementById('account-name').innerText = data.user.name;
+            if (data.user.avatar_url) document.getElementById('account-avatar').src = data.user.avatar_url;
+        }
+
+        async function loadRegisteredVehicles() {
+            const response = await fetch('/api/vehicles', {cache: 'no-store'});
+            if (!response.ok) return;
+            civilianState.vehicles = (await response.json()).vehicles || [];
+            renderVehicles();
+            updateDashboardUI();
+        }
+
+        function saveState() {
+            try {
+                localStorage.setItem('liberty_county_civilian_portal_v1', JSON.stringify(civilianState));
+            } catch(e) {
+                console.error("Error saving state", e);
+            }
+        }
+
+        function updateDashboardUI() {
+            const balEl = document.getElementById('header-bank-balance');
+            const dashBalEl = document.getElementById('dash-bank-balance');
+            const dashPayEl = document.getElementById('dash-hourly-pay');
+            const sideJobEl = document.getElementById('sidebar-current-job');
+            const activeJobBadge = document.getElementById('active-job-badge');
+            const carCountEl = document.getElementById('sidebar-car-count');
+
+            const formattedBal = civilianState.bankBalance == null ? '--' : '$' + Number(civilianState.bankBalance).toLocaleString();
+            const citizenText = civilianState.username ? `${civilianState.username} (ID #${civilianState.playerId || 'unknown'})` : 'Not found in game';
+            const jobText = civilianState.activeJob || 'Not found in game';
+            const payText = civilianState.hourlyPay == null ? '--' : '$' + Number(civilianState.hourlyPay).toLocaleString() + ' / hr';
+            if (balEl) balEl.innerText = formattedBal;
+            if (dashBalEl) dashBalEl.innerText = formattedBal;
+            if (dashPayEl) dashPayEl.innerText = payText;
+            if (sideJobEl) sideJobEl.innerText = jobText;
+            if (activeJobBadge) activeJobBadge.innerText = jobText;
+            if (document.getElementById('current-citizen-name')) document.getElementById('current-citizen-name').innerText = citizenText;
+            if (document.getElementById('welcome-citizen-name')) document.getElementById('welcome-citizen-name').innerText = civilianState.username || 'citizen';
+            if (document.getElementById('career-status')) document.getElementById('career-status').innerText = jobText;
+            if (carCountEl) carCountEl.innerText = civilianState.vehicles.length;
+        }
+
+        async function refreshErlcStatus() {
+            const statusEl = document.getElementById('api-connection-status');
+            try {
+                const response = await fetch('/api/erlc/status', { cache: 'no-store' });
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.error || 'API request failed');
+                const player = data.current_player;
+                civilianState.apiConnected = Boolean(data.api_connection);
+                civilianState.bankBalance = player?.cash ?? null;
+                civilianState.playerId = player?.id ?? null;
+                civilianState.username = player?.username ?? null;
+                civilianState.activeJob = player?.job ?? null;
+                civilianState.isCivilian = Boolean(player?.is_civilian);
+                civilianState.currentVehicle = data.current_vehicle || null;
+                const accountTeamEl = document.getElementById('account-team');
+                if (accountTeamEl) accountTeamEl.innerText = player ? (civilianState.isCivilian ? 'Civilian team' : `Team: ${player.job || 'Unknown'}`) : 'Not in ER:LC';
+                civilianState.gpsLocation = player?.location ?? null;
+                civilianState.activeEmergencies = [...(data.emergency_calls || []), ...(data.saved_calls || []).filter(call => call.type === '911 Emergency')];
+                civilianState.roadsideCalls = (data.saved_calls || []).filter(call => call.type === 'DOT / Roadside Assistance');
+                if (statusEl) {
+                    statusEl.innerText = 'Connected';
+                    statusEl.className = 'mono-font text-emerald-400';
+                }
+                const gpsEl = document.getElementById('auto-gps-location');
+                if (gpsEl) gpsEl.innerText = civilianState.gpsLocation || 'Location unavailable from ER:LC';
+                const roadsideGpsEl = document.getElementById('roadside-gps-location');
+                if (roadsideGpsEl) roadsideGpsEl.innerText = civilianState.gpsLocation || 'Location unavailable from ER:LC';
+                updateDashboardUI();
+                renderActiveCalls();
+                renderRoadsideCalls();
+            } catch (error) {
+                civilianState.apiConnected = false;
+                if (statusEl) {
+                    statusEl.innerText = 'Disconnected';
+                    statusEl.className = 'mono-font text-red-400';
+                }
+                updateDashboardUI();
+                console.error('ER:LC API refresh failed', error);
+            }
+        }
+
+        // Tab Switching
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.tab-btn').forEach(el => {
+                el.classList.remove('bg-zinc-800', 'text-white', 'shadow-inner');
+                el.classList.add('text-zinc-400', 'hover:text-white', 'hover:bg-zinc-900');
+            });
+
+            const targetTab = document.getElementById('tab-' + tabId);
+            if (targetTab) targetTab.classList.remove('hidden');
+
+            const activeBtn = document.getElementById('nav-' + tabId);
+            if (activeBtn) {
+                activeBtn.classList.remove('text-zinc-400', 'hover:text-white', 'hover:bg-zinc-900');
+                activeBtn.classList.add('bg-zinc-800', 'text-white', 'shadow-inner');
+            }
+
+            setTimeout(() => {
+                if (tabId === 'records') {
+                    initFinancesChart();
+                }
+            }, 50);
+        }
+
+        // Modal Controls
+        function openModal(modalId) {
+            const modal = document.getElementById(modalId);
+            if (modal) modal.classList.remove('hidden');
+        }
+
+        function closeModal(modalId) {
+            const modal = document.getElementById(modalId);
+            if (modal) modal.classList.add('hidden');
+        }
+
+        // Render Job Listings
+        function renderJobListings() {
+            const grid = document.getElementById('job-listings-grid');
+            if (!grid) return;
+            grid.innerHTML = '';
+
+            civilianState.jobs.forEach(job => {
+                const isCurrent = civilianState.activeJob === job.name;
+                const card = document.createElement('div');
+                card.className = `p-5 rounded-2xl bg-surface border ${isCurrent ? 'border-blue-500 shadow-lg shadow-blue-500/10' : 'border-bordercolor'} flex flex-col justify-between space-y-4`;
+                card.innerHTML = `
+                    <div>
+                        <h3 class="font-bold text-sm text-white">${job.name}</h3>
+                        <p class="text-xs text-zinc-400 mt-1 leading-relaxed">${job.desc}</p>
+                    </div>
+                    <div class="space-y-3 pt-3 border-t border-zinc-800/80">
+                        <button onclick="showJobInfo('${job.name}', '${job.desc}')" class="w-full py-2 rounded-xl text-xs font-semibold transition-all bg-blue-600 hover:bg-blue-500 text-white shadow-md shadow-blue-600/20">
+                            More Information
+                        </button>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        function showJobInfo(jobName, description) {
+            showNotification(`${jobName}: ${description} Change your job in game to make it active.`);
+        }
+
+        // Render Vehicles in DMV Tab
+        function renderVehicles() {
+            const tbody = document.getElementById('vehicle-tbody');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+
+            if (civilianState.vehicles.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" class="p-6 text-center text-zinc-500">No registered vehicles found. Spawn a civilian vehicle in ER:LC, then register it above.</td></tr>`;
+                return;
+            }
+
+            civilianState.vehicles.forEach((veh, idx) => {
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-zinc-900/50 transition-colors';
+                tr.innerHTML = `
+                    <td class="p-3 mono-font font-bold text-amber-400">${veh.plate}</td>
+                    <td class="p-3 text-white font-medium">${veh.model}</td>
+                    <td class="p-3 text-zinc-300">${veh.color}</td>
+                    <td class="p-3"><span class="px-2 py-0.5 rounded text-[10px] bg-emerald-950 text-emerald-400 border border-emerald-900">Registered</span></td>
+                    <td class="p-3 text-right text-zinc-500">Automatic</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        async function registerCurrentVehicle() {
+            if (!civilianState.signedIn) return showNotification('Sign in with Roblox first.');
+            if (!civilianState.isCivilian) return showNotification('Switch to the Civilian team in game first.');
+            if (!civilianState.currentVehicle) return showNotification('Spawn your vehicle in ER:LC first.');
+            const response = await fetch('/api/vehicles', {method: 'POST'});
+            const data = await response.json();
+            if (!response.ok) return showNotification(data.error || 'Vehicle registration failed.');
+            civilianState.vehicles.unshift({...data.vehicle, registered_at: new Date().toISOString()});
+            renderVehicles();
+            updateDashboardUI();
+            showNotification(`${data.vehicle.model} registered automatically.`);
+        }
+
+        // Handle 911 Emergency Submission
+        function handleEmergencySubmit(e) {
+            e.preventDefault();
+            submitCivilianCall('911 Emergency', document.getElementById('emergency-desc').value, 'emergency-modal', 'emergency-form');
+        }
+
+        async function handleRoadsideSubmit(e) {
+            e.preventDefault();
+            const type = document.getElementById('roadside-type').value;
+            const details = `${type}: ${document.getElementById('roadside-desc').value}`;
+            await submitCivilianCall('DOT / Roadside Assistance', details, 'roadside-modal', 'roadside-form');
+            switchTab('roadside');
+        }
+
+        async function submitCivilianCall(category, description, modalId, formId) {
+            if (!civilianState.signedIn) return showNotification('Sign in with Roblox first.');
+            if (!civilianState.isCivilian) return showNotification('Switch to the Civilian team in game first.');
+            try {
+                const response = await fetch('/api/calls', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({category, description, location: civilianState.gpsLocation || 'Location unavailable'})
+                });
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.error || 'Sign in with Roblox before calling for assistance.');
+                if (category === '911 Emergency') civilianState.activeEmergencies.unshift(data.call);
+                if (category === 'DOT / Roadside Assistance') civilianState.roadsideCalls.unshift(data.call);
+                document.getElementById(formId).reset();
+                closeModal(modalId);
+                renderActiveCalls();
+                renderRoadsideCalls();
+                showNotification(`${category} submitted successfully.`);
+            } catch (error) {
+                showNotification(error.message);
+            }
+        }
+
+        function toggleAccountMenu() {
+            document.getElementById('account-menu').classList.toggle('hidden');
+        }
+
+        // Render Active 911 Calls & Responder Tracker
+        function renderActiveCalls() {
+            const container = document.getElementById('active-calls-container');
+            if (!container) return;
+            container.innerHTML = '';
+
+            if (civilianState.activeEmergencies.length === 0) {
+                container.innerHTML = `<div class="p-8 rounded-2xl bg-surface border border-bordercolor text-center text-zinc-500">No active 911 emergency calls. Click 'Call 911' above if you need assistance.</div>`;
+                return;
+            }
+
+            civilianState.activeEmergencies.forEach(call => {
+                const dateStr = new Date(call.timestamp).toLocaleTimeString();
+                const card = document.createElement('div');
+                card.className = 'p-5 rounded-2xl bg-surface border border-bordercolor space-y-4';
+                
+                let unitsHtml = '';
+                (call.units || []).forEach(u => {
+                    unitsHtml += `
+                        <div class="flex items-center justify-between p-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-xs">
+                            <div class="flex items-center space-x-2">
+                                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                                <strong class="text-white">${u.callsign}</strong>
+                            </div>
+                            <div class="flex items-center space-x-3">
+                                <span class="text-zinc-400">Status: <strong class="text-emerald-400">${u.status}</strong></span>
+                                <span class="text-zinc-500">ETA: ${u.eta}</span>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                card.innerHTML = `
+                    <div class="flex flex-col md:flex-row md:items-center justify-between gap-2 border-b border-zinc-800 pb-3">
+                        <div>
+                            <div class="flex items-center space-x-2">
+                                <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-red-950 text-red-400 border border-red-900">${call.id}</span>
+                                <h3 class="font-bold text-sm text-white">${call.type}</h3>
+                            </div>
+                            <p class="text-xs text-zinc-400 mt-1"><i class="fa-solid fa-location-dot text-red-500 mr-1"></i> Location: ${call.location}</p>
+                        </div>
+                        <span class="text-xs text-zinc-500">${dateStr}</span>
+                    </div>
+                    <p class="text-xs text-zinc-300"><strong>Description:</strong> ${call.desc}</p>
+                    <div class="space-y-2 pt-1">
+                        <span class="text-[10px] uppercase tracking-wider text-zinc-500 font-semibold block">Responding Units Tracker</span>
+                        <div class="space-y-2">
+                            ${unitsHtml}
+                        </div>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function renderRoadsideCalls() {
+            const container = document.getElementById('roadside-calls-container');
+            if (!container) return;
+            container.innerHTML = civilianState.roadsideCalls.length ? civilianState.roadsideCalls.map(call => `
+                <div class="p-4 rounded-xl bg-surface border border-bordercolor flex items-center justify-between gap-4 text-xs">
+                    <div><strong class="text-white">${call.id}</strong><p class="text-zinc-400 mt-1">${call.desc}</p><p class="text-zinc-500 mt-1">${call.location}</p></div>
+                    <span class="px-2 py-1 rounded bg-amber-950 text-amber-400 border border-amber-900">${call.status || 'Submitted'}</span>
+                </div>`).join('') : '<div class="p-8 rounded-xl bg-surface border border-bordercolor text-center text-zinc-500">You have no roadside assistance calls.</div>';
+        }
+
+        // Switch Map Layer in District Maps Hub
+        function switchMapLayer(layerKey) {
+            document.querySelectorAll('.map-pill').forEach(btn => {
+                btn.className = 'map-pill px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-zinc-900 border border-bordercolor text-zinc-300 hover:text-white transition-all';
+            });
+            const activeBtn = document.getElementById('map-btn-' + layerKey);
+            if (activeBtn) {
+                activeBtn.className = 'map-pill px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 text-white shadow-lg shadow-emerald-600/20 transition-all';
+            }
+
+            const titleEl = document.getElementById('current-map-title');
+            const mapImg = document.getElementById('active-map-image');
+            const mapSources = {
+                structure: "{{ url_for('static', filename='images/Building_Overlay.png') }}",
+                job: "{{ url_for('static', filename='images/Job_Overlay.png') }}",
+                driving: "{{ url_for('static', filename='images/Driving_Overlay.png') }}",
+                crime: "{{ url_for('static', filename='images/Crime_Overlay.png') }}"
+            };
+            if (mapImg) mapImg.src = mapSources[layerKey];
+
+            if (layerKey === 'structure') {
+                if (titleEl) titleEl.innerText = 'Structure Overlay';
+            } else if (layerKey === 'job') {
+                if (titleEl) titleEl.innerText = 'Job Depots & Worksite Map';
+            } else if (layerKey === 'driving') {
+                if (titleEl) titleEl.innerText = 'Highways & Navigation Grid';
+            } else if (layerKey === 'crime') {
+                if (titleEl) titleEl.innerText = 'Crime Map Overlay';
+            }
+        }
+
+        // Finances Chart
+        function initFinancesChart() {
+            const ctxEl = document.getElementById('financesChart');
+            if (!ctxEl) return;
+            if (financesChartInstance) {
+                financesChartInstance.destroy();
+                financesChartInstance = null;
+            }
+
+            financesChartInstance = new Chart(ctxEl.getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: ['Shift 1', 'Shift 2', 'Shift 3', 'Shift 4', 'Shift 5', 'Shift 6', 'Shift 7'],
+                    datasets: [{
+                        label: 'Earnings ($)',
+                        data: [1200, 1450, 1100, 1600, 1350, 1800, 2100],
+                        backgroundColor: '#3b82f6',
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { ticks: { color: '#a1a1aa', font: { size: 10 } }, grid: { display: false } },
+                        y: { ticks: { color: '#a1a1aa', font: { size: 10 } }, grid: { color: '#27272a' } }
+                    },
+                    plugins: { legend: { display: false } }
+                }
+            });
+        }
+
+        function showNotification(msg) {
+            const notif = document.createElement('div');
+            notif.className = 'fixed bottom-4 right-4 z-50 bg-zinc-900 border border-zinc-700 text-white px-4 py-2.5 rounded-xl text-xs shadow-2xl flex items-center space-x-2';
+            notif.innerHTML = `<i class="fa-solid fa-check text-emerald-400"></i><span>${msg}</span>`;
+            document.body.appendChild(notif);
+            setTimeout(() => notif.remove(), 2800);
+        }
+
+        window.onload = initPortal;
+    </script>
+</body>
+</html>
