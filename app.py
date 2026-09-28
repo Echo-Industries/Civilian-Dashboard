@@ -221,6 +221,49 @@ def _is_civilian(player):
     return str(player.get("Team") or player.get("Job") or player.get("team") or "").strip().lower() == "civilian"
 
 
+def _most_wanted_players(players):
+    wanted_players = []
+    if isinstance(players, dict):
+        players = list(players.values())
+
+    for player in players:
+        if isinstance(player, str):
+            username, _, player_id = player.partition(":")
+            player = {"Username": username, "Player": player, "Id": player_id or None}
+        if not isinstance(player, dict):
+            continue
+
+        wanted_value = player.get("Wanted", player.get("IsWanted", player.get("WantedStatus")))
+        wanted_text = str(wanted_value).strip().lower()
+        wanted_level = player.get("WantedLevel", player.get("WantedStars", player.get("wanted_level", 0)))
+        try:
+            wanted_level = max(0, int(wanted_level or 0))
+        except (TypeError, ValueError):
+            wanted_level = 0
+
+        if wanted_text not in {"true", "yes", "wanted", "1"} and wanted_level == 0:
+            continue
+
+        raw_player = str(player.get("Player", ""))
+        parsed_username = raw_player.partition(":")[0]
+        username = str(player.get("Username") or player.get("Name") or parsed_username).strip()
+        if username:
+            wanted_players.append({
+                "username": username,
+                "team": str(player.get("Team") or player.get("Job") or "Unknown"),
+                "wanted_level": wanted_level or 1,
+            })
+
+    return sorted(wanted_players, key=lambda player: (-player["wanted_level"], player["username"].lower()))[:10]
+
+
+def _has_wanted_player_data(players):
+    if isinstance(players, dict):
+        players = players.values()
+    wanted_fields = {"Wanted", "IsWanted", "WantedStatus", "WantedLevel", "WantedStars", "wanted_level"}
+    return any(isinstance(player, dict) and wanted_fields.intersection(player) for player in players)
+
+
 def _vehicle_matches_user(vehicle, user):
     for key in ("OwnerId", "OwnerID", "UserId", "UserID", "PlayerId", "PlayerID"):
         if vehicle.get(key) is not None and str(vehicle[key]) == str(user.get("id", "")):
@@ -390,11 +433,13 @@ def get_erlc_status():
         "api_connection": True,
         "current_player": current_player,
         "current_vehicle": _current_vehicle(data, signed_in_user) if signed_in_user else None,
+        "most_wanted": _most_wanted_players(data.get("Players", [])) if signed_in_user else [],
+        "most_wanted_available": _has_wanted_player_data(data.get("Players", [])) if signed_in_user else False,
         "emergency_calls": owned_emergency_calls,
         "saved_calls": _owned_saved_calls(signed_in_user) if signed_in_user else [],
     })
 
 
 if __name__ == "__main__":
-    print(f"[*] Starting Liberty County Civilian Portal Backend on http://localhost:{PORT}")
+    print(f"[*] Starting Seattle, Washington Civilian Portal Backend on http://localhost:{PORT}")
     app.run(host="0.0.0.0", port=PORT, debug=True)
