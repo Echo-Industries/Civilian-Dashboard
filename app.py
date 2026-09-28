@@ -84,8 +84,12 @@ def login_required(handler):
 @app.route("/")
 def index():
     """Serves the main Civilian Portal frontend interface."""
-    if not current_user():
+    user = current_user()
+    if not user:
         return redirect(url_for("sign_in"))
+    _, player, error = _load_server_state(user)
+    if error or not player or not _is_civilian(player):
+        return render_template("access_denied.html"), 403
     return render_template("index.html")
 
 
@@ -221,49 +225,6 @@ def _is_civilian(player):
     return str(player.get("Team") or player.get("Job") or player.get("team") or "").strip().lower() == "civilian"
 
 
-def _most_wanted_players(players):
-    wanted_players = []
-    if isinstance(players, dict):
-        players = list(players.values())
-
-    for player in players:
-        if isinstance(player, str):
-            username, _, player_id = player.partition(":")
-            player = {"Username": username, "Player": player, "Id": player_id or None}
-        if not isinstance(player, dict):
-            continue
-
-        wanted_value = player.get("Wanted", player.get("IsWanted", player.get("WantedStatus")))
-        wanted_text = str(wanted_value).strip().lower()
-        wanted_level = player.get("WantedLevel", player.get("WantedStars", player.get("wanted_level", 0)))
-        try:
-            wanted_level = max(0, int(wanted_level or 0))
-        except (TypeError, ValueError):
-            wanted_level = 0
-
-        if wanted_text not in {"true", "yes", "wanted", "1"} and wanted_level == 0:
-            continue
-
-        raw_player = str(player.get("Player", ""))
-        parsed_username = raw_player.partition(":")[0]
-        username = str(player.get("Username") or player.get("Name") or parsed_username).strip()
-        if username:
-            wanted_players.append({
-                "username": username,
-                "team": str(player.get("Team") or player.get("Job") or "Unknown"),
-                "wanted_level": wanted_level or 1,
-            })
-
-    return sorted(wanted_players, key=lambda player: (-player["wanted_level"], player["username"].lower()))[:10]
-
-
-def _has_wanted_player_data(players):
-    if isinstance(players, dict):
-        players = players.values()
-    wanted_fields = {"Wanted", "IsWanted", "WantedStatus", "WantedLevel", "WantedStars", "wanted_level"}
-    return any(isinstance(player, dict) and wanted_fields.intersection(player) for player in players)
-
-
 def _vehicle_matches_user(vehicle, user):
     for key in ("OwnerId", "OwnerID", "UserId", "UserID", "PlayerId", "PlayerID"):
         if vehicle.get(key) is not None and str(vehicle[key]) == str(user.get("id", "")):
@@ -322,16 +283,16 @@ def _load_server_state(user):
 @login_required
 def civilian_calls():
     user = current_user()
-    if request.method == "GET":
-        return jsonify({"calls": _owned_saved_calls(user)})
-
     server_data, player, error = _load_server_state(user)
     if error:
         return jsonify({"error": error[0]}), error[1]
     if not player:
         return jsonify({"error": "Your Roblox account is not currently in the ER:LC server."}), 403
     if not _is_civilian(player):
-        return jsonify({"error": "Switch to the Civilian team in game before requesting assistance."}), 403
+        return jsonify({"error": "Switch to the Civilian team in game to access this dashboard."}), 403
+
+    if request.method == "GET":
+        return jsonify({"calls": _owned_saved_calls(user)})
 
     payload = request.get_json(silent=True) or {}
     category = str(payload.get("category", "")).strip()
@@ -364,6 +325,14 @@ def civilian_calls():
 @login_required
 def civilian_vehicles():
     user = current_user()
+    server_data, player, error = _load_server_state(user)
+    if error:
+        return jsonify({"error": error[0]}), error[1]
+    if not player:
+        return jsonify({"error": "Your Roblox account is not currently in the ER:LC server."}), 403
+    if not _is_civilian(player):
+        return jsonify({"error": "Switch to the Civilian team in game to access this dashboard."}), 403
+
     database = get_db()
     if request.method == "GET":
         rows = database.execute(
@@ -372,17 +341,6 @@ def civilian_vehicles():
         ).fetchall()
         database.close()
         return jsonify({"vehicles": [dict(row) for row in rows]})
-
-    server_data, player, error = _load_server_state(user)
-    if error:
-        database.close()
-        return jsonify({"error": error[0]}), error[1]
-    if not player:
-        database.close()
-        return jsonify({"error": "Your Roblox account is not currently in the ER:LC server."}), 403
-    if not _is_civilian(player):
-        database.close()
-        return jsonify({"error": "Switch to the Civilian team in game before registering a vehicle."}), 403
 
     vehicle = _current_vehicle(server_data, user)
     if not vehicle or not vehicle["plate"]:
@@ -402,12 +360,15 @@ def civilian_vehicles():
 
 
 @app.route("/api/erlc/status", methods=["GET"])
+@login_required
 def get_erlc_status():
     """Proxy endpoint to securely fetch live player lists, in-game cash, IDs, active units, and GPS emergency calls from ER:LC."""
     signed_in_user = current_user() or {}
     data, player, error = _load_server_state(signed_in_user)
     if error:
         return jsonify({"error": error[0]}), error[1]
+    if not player or not _is_civilian(player):
+        return jsonify({"error": "Dashboard access requires the Civilian team in ER:LC."}), 403
     current_player = None
     if player:
         raw_player = str(player.get("Player", ""))
@@ -433,8 +394,6 @@ def get_erlc_status():
         "api_connection": True,
         "current_player": current_player,
         "current_vehicle": _current_vehicle(data, signed_in_user) if signed_in_user else None,
-        "most_wanted": _most_wanted_players(data.get("Players", [])) if signed_in_user else [],
-        "most_wanted_available": _has_wanted_player_data(data.get("Players", [])) if signed_in_user else False,
         "emergency_calls": owned_emergency_calls,
         "saved_calls": _owned_saved_calls(signed_in_user) if signed_in_user else [],
     })

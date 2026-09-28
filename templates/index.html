@@ -156,22 +156,6 @@
                     </div>
                 </div>
 
-                <section class="rounded-2xl border border-red-900/50 bg-card p-6 shadow-xl" aria-labelledby="most-wanted-heading">
-                    <div class="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                        <div>
-                            <h2 id="most-wanted-heading" class="flex items-center gap-2 text-sm font-bold uppercase text-white">
-                                <i class="fa-solid fa-star text-red-400"></i>
-                                <span>FBI 10 Most Wanted</span>
-                            </h2>
-                            <p class="mt-1 text-xs text-zinc-400">Wanted players currently in the Seattle ER:LC server</p>
-                        </div>
-                        <span id="most-wanted-count" class="text-xs text-zinc-500">Waiting for ER:LC data</span>
-                    </div>
-                    <ol id="most-wanted-list" class="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-5" aria-live="polite">
-                        <li class="col-span-full py-5 text-center text-xs text-zinc-500">Loading wanted-player data...</li>
-                    </ol>
-                </section>
-
                 <!-- 4 Main Interactive Portal Containers -->
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                     <!-- Jobs Container Card -->
@@ -567,8 +551,6 @@
             ],
             vehicles: [],
             activeEmergencies: [],
-            mostWanted: [],
-            mostWantedAvailable: false,
             roadsideCalls: [],
             signedIn: false,
             isCivilian: false,
@@ -655,8 +637,6 @@
                 civilianState.activeJob = player?.job ?? null;
                 civilianState.isCivilian = Boolean(player?.is_civilian);
                 civilianState.currentVehicle = data.current_vehicle || null;
-                civilianState.mostWanted = data.most_wanted || [];
-                civilianState.mostWantedAvailable = Boolean(data.most_wanted_available);
                 const accountTeamEl = document.getElementById('account-team');
                 if (accountTeamEl) accountTeamEl.innerText = player ? (civilianState.isCivilian ? 'Civilian team' : `Team: ${player.job || 'Unknown'}`) : 'Not in ER:LC';
                 civilianState.gpsLocation = player?.location ?? null;
@@ -671,19 +651,15 @@
                 const roadsideGpsEl = document.getElementById('roadside-gps-location');
                 if (roadsideGpsEl) roadsideGpsEl.innerText = civilianState.gpsLocation || 'Location unavailable from ER:LC';
                 updateDashboardUI();
-                renderMostWanted();
                 renderActiveCalls();
                 renderRoadsideCalls();
             } catch (error) {
                 civilianState.apiConnected = false;
-                civilianState.mostWanted = [];
-                civilianState.mostWantedAvailable = false;
                 if (statusEl) {
                     statusEl.innerText = 'Disconnected';
                     statusEl.className = 'mono-font text-red-400';
                 }
                 updateDashboardUI();
-                renderMostWanted();
                 console.error('ER:LC API refresh failed', error);
             }
         }
@@ -829,51 +805,6 @@
 
         function toggleAccountMenu() {
             document.getElementById('account-menu').classList.toggle('hidden');
-        }
-
-        function renderMostWanted() {
-            const list = document.getElementById('most-wanted-list');
-            const count = document.getElementById('most-wanted-count');
-            if (!list || !count) return;
-
-            count.innerText = civilianState.mostWantedAvailable ? `${civilianState.mostWanted.length} wanted in server` : 'Wanted status unavailable';
-            list.replaceChildren();
-            if (!civilianState.mostWantedAvailable) {
-                const unavailableState = document.createElement('li');
-                unavailableState.className = 'col-span-full py-5 text-center text-xs text-zinc-500';
-                unavailableState.textContent = 'ER:LC player data does not expose wanted status.';
-                list.appendChild(unavailableState);
-                return;
-            }
-            if (civilianState.mostWanted.length === 0) {
-                const emptyState = document.createElement('li');
-                emptyState.className = 'col-span-full py-5 text-center text-xs text-zinc-500';
-                emptyState.textContent = 'No players are currently marked wanted.';
-                list.appendChild(emptyState);
-                return;
-            }
-
-            civilianState.mostWanted.forEach((player, index) => {
-                const item = document.createElement('li');
-                item.className = 'flex min-w-0 items-center gap-3 rounded-lg border border-zinc-800 bg-surface px-3 py-3';
-
-                const rank = document.createElement('span');
-                rank.className = 'mono-font text-xs font-bold text-red-400';
-                rank.textContent = String(index + 1).padStart(2, '0');
-
-                const details = document.createElement('span');
-                details.className = 'min-w-0 flex-1';
-                const username = document.createElement('strong');
-                username.className = 'block truncate text-xs text-white';
-                username.textContent = player.username;
-                const status = document.createElement('span');
-                status.className = 'block truncate text-[10px] text-zinc-500';
-                status.textContent = `${player.team} · Wanted level ${player.wanted_level}`;
-
-                details.append(username, status);
-                item.append(rank, details);
-                list.appendChild(item);
-            });
         }
 
         // Render Active 911 Calls & Responder Tracker

@@ -1,14 +1,14 @@
 # Seattle Civilian Portal
 
-The Civilian Portal is a Flask web application customized for a Seattle, Washington ER:LC server. It provides a Roblox-authenticated civilian view of player status, civilian careers, vehicle records, district maps, private 911 calls, private Department of Transportation roadside assistance requests, and an ER:LC-backed wanted-player board.
+The Civilian Portal is a Flask web application customized for a Seattle, Washington ER:LC server. It provides a Roblox-authenticated civilian view of player status, civilian careers, vehicle records, district maps, private 911 calls, and private Department of Transportation roadside assistance requests.
 
 ## Features
 
 - Roblox OAuth sign-in with a signed Flask session.
 - Required sign-in page with a Roblox headshot account menu and sign-out action.
 - ER:LC server status proxy for the signed-in player's cash, job, GPS location, and connection status.
-- Dashboard FBI 10 Most Wanted board for active server players explicitly marked wanted by ER:LC.
 - Automatic vehicle registration from the signed-in player's currently spawned ER:LC vehicle.
+- Civilian-team verification gates access to the dashboard and its data APIs.
 - Civilian-team authorization for vehicle registration, 911 calls, and roadside assistance.
 - Civilian-only career listings: Civilian, Postal Worker, Tow Truck Driver, Taxi Driver, Bus Driver, and Trucker.
 - Private 911 and DOT call records stored in SQLite and keyed by Roblox user ID.
@@ -70,7 +70,7 @@ Returns the current Roblox session user, or `null` when signed out.
 
 ### `GET /api/erlc/status`
 
-Proxies ER:LC server status and returns the signed-in player's normalized profile and wanted-player entries. The `emergency_calls` array contains only calls belonging to that player; the raw server payload is not returned. The wanted list includes only players explicitly marked wanted in the ER:LC player data and is limited to ten entries. If the ER:LC response does not include wanted-status fields, the dashboard reports that the data is unavailable.
+Requires Roblox sign-in and current membership on the Civilian team in ER:LC. Proxies server status and returns the signed-in player's normalized profile. The `emergency_calls` array contains only calls belonging to that player; the raw server payload is not returned.
 
 ### `GET /api/calls`
 
